@@ -11,6 +11,8 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresPermission;
 
+import com.google.common.base.Optional;
+
 import java.util.Collections;
 import java.util.List;
 
@@ -24,7 +26,7 @@ public class WifiUtils {
   }
 
   public static List<WifiConfiguration> getConfiguredNetworks(Context context) {
-    WifiManager wifiManager = Utils.getSystemService(context, WIFI_SERVICE);
+    WifiManager wifiManager = getWifiManager(context);
     List<WifiConfiguration> configuredNetworks = wifiManager.getConfiguredNetworks();
     for (WifiConfiguration configuredNetwork : configuredNetworks) {
     }
@@ -32,15 +34,29 @@ public class WifiUtils {
   }
 
   @Nullable
-  public static WifiConfiguration getConfiguredNetwork(Context context, String networkSSID) {
+  public static Optional<WifiConfiguration> getConfiguredNetwork(Context context, String networkSSID) {
     networkSSID = "\"" + networkSSID + "\"";
     List<WifiConfiguration> configuredNetworks = getConfiguredNetworks(context);
     for (WifiConfiguration configuredNetwork : configuredNetworks) {
       if (configuredNetwork.SSID.equals(networkSSID)) {
-        return configuredNetwork;
+        return Optional.of(configuredNetwork);
       }
     }
-    return null;
+    return Optional.absent();
+  }
+
+  /**
+   * @param context
+   * @return true on success or wifi wasn't configured
+   */
+  public static boolean forgetConfiguredNetwork(Context context, String networkSSID) {
+    Optional<WifiConfiguration> configuredNetworkOptional = getConfiguredNetwork(context, networkSSID);
+    if (configuredNetworkOptional.isPresent()) {
+      WifiConfiguration wifiConfiguration = configuredNetworkOptional.get();
+      WifiManager wifiManager = getWifiManager(context);
+      return wifiManager.removeNetwork(wifiConfiguration.networkId);
+    }
+    return true;
   }
 
   public static void configureAndConnectToWifiNetwork(Context context,
@@ -59,7 +75,7 @@ public class WifiUtils {
     conf.SSID = "\"" + networkSSID + "\"";   // note the quotes. String should contain SSID in quotes
     conf.preSharedKey = "\"" + password + "\"";
 
-    WifiManager wifiManager = Utils.getSystemService(context, WIFI_SERVICE);
+    WifiManager wifiManager = getWifiManager(context);
     wifiManager.addNetwork(conf);
 
     return conf;
@@ -67,7 +83,7 @@ public class WifiUtils {
 
   public static void connectToConfiguredWifiNetwork(Context context,
                                                     WifiConfiguration configuredWifiNetwork) {
-    WifiManager wifiManager = Utils.getSystemService(context, WIFI_SERVICE);
+    WifiManager wifiManager = getWifiManager(context);
     wifiManager.disconnect();
     wifiManager.enableNetwork(configuredWifiNetwork.networkId, true);
     wifiManager.reconnect();
@@ -81,7 +97,7 @@ public class WifiUtils {
   public static void getAvailableWifiNetworks(Context context,
                                               final WifiScanResultListener wifiScanResultListener) {
     context = context.getApplicationContext();
-    final WifiManager wifiManager = Utils.getSystemService(context, WIFI_SERVICE);
+    final WifiManager wifiManager = getWifiManager(context);
 
     BroadcastReceiver wifiScanReceiver = new BroadcastReceiver() {
       @Override
@@ -101,5 +117,9 @@ public class WifiUtils {
       context.unregisterReceiver(wifiScanReceiver);
       wifiScanResultListener.onWifiScanResult(Collections.<ScanResult>emptyList());
     }
+  }
+
+  public static WifiManager getWifiManager(Context context) {
+    return Utils.getSystemService(context, WIFI_SERVICE);
   }
 }
