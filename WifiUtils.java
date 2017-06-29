@@ -6,8 +6,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.support.annotation.RequiresPermission;
+import android.text.format.Formatter;
+import android.util.Log;
 
 import com.google.common.base.Optional;
 
@@ -20,6 +23,8 @@ import static android.Manifest.permission.CHANGE_WIFI_STATE;
 import static android.content.Context.WIFI_SERVICE;
 
 public class WifiUtils {
+  public static final String TAG = "WifiUtils";
+
   private WifiUtils() {
   }
 
@@ -56,6 +61,7 @@ public class WifiUtils {
    */
   public static boolean forgetConfiguredNetwork(Context context, String networkSSID) {
     if (!isWifiEnabled(context)) {
+      Log.e(TAG, "forgetConfiguredNetwork: wifi is disabled");
       return false;
     }
     Optional<WifiConfiguration> configuredNetworkOptional = getConfiguredNetwork(context, networkSSID);
@@ -75,6 +81,7 @@ public class WifiUtils {
                                                          String password) {
     Optional<WifiConfiguration> configuredWifiOpt = configureWifiNetwork(context, networkSSID, password);
     if (!configuredWifiOpt.isPresent()) {
+      Log.e(TAG, "configureAndConnectToWifiNetwork: failed to configure");
       return false;
     }
     return connectToConfiguredWifiNetwork(context, configuredWifiOpt.get());
@@ -98,6 +105,7 @@ public class WifiUtils {
 
     final int FAILURE = -1;
     if (res == FAILURE) {
+      Log.e(TAG, "configureWifiNetwork: Failed to add network");
       return Optional.absent();
     }
 
@@ -114,14 +122,20 @@ public class WifiUtils {
     WifiManager wifiManager = getWifiManager(context);
     boolean res = wifiManager.disconnect();
     if (!res) {
+      Log.e(TAG, "connectToConfiguredWifiNetwork: failed to disconnect");
       return false;
     }
     res = wifiManager.enableNetwork(configuredWifiNetwork.networkId, true);
     if (!res) {
+      Log.e(TAG, "connectToConfiguredWifiNetwork: failed to enable network");
       return false;
     }
     res = wifiManager.reconnect();
-    return res;
+    if (!res) {
+      Log.e(TAG, "connectToConfiguredWifiNetwork: failed to reconnect");
+      return false;
+    }
+    return true;
   }
 
   public static boolean isWifiEnabled(Context context) {
@@ -162,6 +176,18 @@ public class WifiUtils {
       context.unregisterReceiver(wifiScanReceiver);
       wifiScanResultListener.onWifiScanResult(Collections.<ScanResult>emptyList());
     }
+  }
+
+  /**
+   * make sure wifi is connected. null otherwis
+   */
+  public static String getIpAddress(Context context) {
+    WifiInfo connectionInfo = getWifiManager(context).getConnectionInfo();
+    if (null == connectionInfo) {
+      Log.i(TAG, "getIpAddress: not connected");
+      return null;
+    }
+    return Formatter.formatIpAddress(connectionInfo.getIpAddress());
   }
 
   public static WifiManager getWifiManager(Context context) {

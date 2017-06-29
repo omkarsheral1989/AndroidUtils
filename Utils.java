@@ -9,6 +9,8 @@ import android.support.annotation.NonNull;
 import android.support.annotation.RequiresPermission;
 import android.support.v4.content.ContextCompat;
 
+import com.sheral.omkar.twguestwifipoc.BuildConfig;
+
 public class Utils {
   private Utils() {
   }
@@ -27,5 +29,14 @@ public class Utils {
     ConnectivityManager connectivityManager = getSystemService(context, Context.CONNECTIVITY_SERVICE);
     NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
     return activeNetwork != null && activeNetwork.isConnected();
+  }
+
+  public static CharSequence getApplicationName(Context context) {
+    return context.getApplicationInfo().loadLabel(context.getPackageManager());
+  }
+
+  public static boolean isDebug() {
+    // Make sure you are using BuildConfig from your own application package name
+    return BuildConfig.DEBUG;
   }
 }
